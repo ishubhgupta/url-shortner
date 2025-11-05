@@ -6,16 +6,19 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContai
 export default function Analytics() {
   const [shortCode, setShortCode] = useState('')
   const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
   const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000'
 
   const fetch = async () => {
     if (!shortCode) return
     try {
+      setLoading(true)
       const res = await axios.get(`${BASE}/api/urls/${shortCode}/analytics`)
       setData(res.data)
     } catch (err) {
       toast.error(err.response?.data?.message || err.message)
     }
+    finally { setLoading(false) }
   }
 
   const timeseriesToArray = (timeseries) => {
@@ -27,10 +30,10 @@ export default function Analytics() {
       <h2 className="text-xl font-semibold mb-4">Analytics</h2>
       <div className="mb-4 flex gap-2">
         <input placeholder="shortCode or alias" value={shortCode} onChange={e => setShortCode(e.target.value)} className="border p-2" />
-        <button onClick={fetch} className="px-3 py-2 bg-blue-600 text-white rounded">Fetch</button>
+        <button onClick={fetch} disabled={loading} className="px-3 py-2 bg-blue-600 text-white rounded">{loading ? 'Loading…' : 'Fetch'}</button>
       </div>
 
-      {data && (
+      {data ? (
         <div>
           <div className="mb-4">Total clicks: {data.clicks}</div>
 
@@ -56,6 +59,8 @@ export default function Analytics() {
             ))}
           </div>
         </div>
+      ) : (
+        <div className="text-gray-600">No analytics loaded. Enter a shortCode and click Fetch.</div>
       )}
     </div>
   )
