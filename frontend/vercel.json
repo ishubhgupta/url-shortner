@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/:shortCode",
+      "destination": "https://43.204.112.113/:shortCode"
+    }
+  ]
+}
