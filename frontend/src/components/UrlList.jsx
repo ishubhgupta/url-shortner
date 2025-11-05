@@ -5,7 +5,21 @@ import toast from 'react-hot-toast'
 export default function UrlList() {
   const [urls, setUrls] = useState([])
   const [loading, setLoading] = useState(false)
-  const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000'
+  // Normalize API base (similar logic to UrlShortener)
+  const ENV_API = import.meta.env.VITE_API_BASE
+  let API_BASE
+  if (ENV_API) {
+    if (ENV_API.startsWith('http')) {
+      API_BASE = ENV_API.replace(/\/+$/, '')
+      if (!API_BASE.endsWith('/api')) API_BASE = API_BASE + '/api'
+    } else {
+      API_BASE = ENV_API.startsWith('/') ? ENV_API : '/' + ENV_API
+    }
+  } else {
+    API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:5000/api'
+  }
+
+  const DISPLAY_ROOT = API_BASE.startsWith('http') ? API_BASE.replace(/\/api\/?$/, '') : (typeof window !== 'undefined' ? window.location.origin : '')
 
   useEffect(() => {
     fetchList()
@@ -14,7 +28,7 @@ export default function UrlList() {
   const fetchList = async () => {
     try {
       setLoading(true)
-      const res = await axios.get(`${BASE}/api/urls?page=1&limit=50`)
+  const res = await axios.get(`${API_BASE}/urls?page=1&limit=50`)
       // sort by clicks desc
       const data = (res.data.data || []).sort((a,b) => (b.clicks||0) - (a.clicks||0))
       setUrls(data)
@@ -28,7 +42,7 @@ export default function UrlList() {
   const del = async (code) => {
     if (!confirm('Delete this short URL?')) return
     try {
-      await axios.delete(`${BASE}/api/urls/${code}`)
+  await axios.delete(`${API_BASE}/urls/${code}`)
       toast.success('Deleted')
       fetchList()
     } catch (err) {
@@ -49,11 +63,11 @@ export default function UrlList() {
             <div key={u._id} className="p-3 border rounded flex justify-between items-center">
               <div>
                 <div className="font-medium">{u.originalUrl}</div>
-                <div className="text-sm text-gray-600">Short: <a className="text-blue-600" href={`${BASE}/${u.shortCode}`} target="_blank" rel="noreferrer">{BASE}/{u.shortCode}</a></div>
+                <div className="text-sm text-gray-600">Short: <a className="text-blue-600" href={`${DISPLAY_ROOT}/${u.shortCode}`} target="_blank" rel="noreferrer">{DISPLAY_ROOT}/{u.shortCode}</a></div>
                 <div className="text-sm text-gray-600">Clicks: {u.clicks} • Created: {new Date(u.createdAt).toLocaleString()}</div>
               </div>
               <div className="space-x-2">
-                <button onClick={() => { navigator.clipboard?.writeText(`${BASE}/${u.shortCode}`).then(()=>toast.success('Copied')).catch(()=>toast.error('Copy failed')) }} className="px-3 py-1 bg-gray-200 rounded">Copy</button>
+                <button onClick={() => { navigator.clipboard?.writeText(`${DISPLAY_ROOT}/${u.shortCode}`).then(()=>toast.success('Copied')).catch(()=>toast.error('Copy failed')) }} className="px-3 py-1 bg-gray-200 rounded">Copy</button>
                 <button onClick={() => del(u.shortCode)} className="px-3 py-1 bg-red-500 text-white rounded">Delete</button>
               </div>
             </div>

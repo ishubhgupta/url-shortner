@@ -8,7 +8,22 @@ export default function UrlShortener() {
   const [expiresAt, setExpiresAt] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
-  const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000'
+  // Normalize API base:
+  const ENV_API = import.meta.env.VITE_API_BASE
+  let API_BASE
+  if (ENV_API) {
+    if (ENV_API.startsWith('http')) {
+      API_BASE = ENV_API.replace(/\/+$/, '')
+      if (!API_BASE.endsWith('/api')) API_BASE = API_BASE + '/api'
+    } else {
+      API_BASE = ENV_API.startsWith('/') ? ENV_API : '/' + ENV_API
+    }
+  } else {
+    API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:5000/api'
+  }
+
+  // Display root (where short links live) — if API_BASE is absolute, strip the /api suffix
+  const DISPLAY_ROOT = API_BASE.startsWith('http') ? API_BASE.replace(/\/api\/?$/, '') : (typeof window !== 'undefined' ? window.location.origin : '')
 
   const submit = async (e) => {
     e.preventDefault()
@@ -25,11 +40,11 @@ export default function UrlShortener() {
       const payload = { originalUrl }
       if (customAlias) payload.customAlias = customAlias
       if (expiresAt) payload.expiresAt = expiresAt
-      const res = await axios.post(`${BASE}/api/shorten`, payload)
-      setResult(res.data.data)
-      toast.success('Short URL created')
-      // try to copy to clipboard
-      try { await navigator.clipboard.writeText(`${BASE}/${res.data.data.shortCode}`); toast.success('Copied to clipboard') } catch (e) {}
+  const res = await axios.post(`${API_BASE}/shorten`, payload)
+  setResult(res.data.data)
+  toast.success('Short URL created')
+  // try to copy to clipboard (use display root so users get the public link)
+  try { await navigator.clipboard.writeText(`${DISPLAY_ROOT}/${res.data.data.shortCode}`); toast.success('Copied to clipboard') } catch { /* ignore clipboard errors */ }
     } catch (err) {
       const message = err.response?.data?.message || err.message
       setResult({ error: message })
@@ -70,10 +85,10 @@ export default function UrlShortener() {
             <div className="text-red-600">Error: {result.error}</div>
           ) : (
             <div className="space-y-2">
-              <div>Short URL: <a className="text-blue-600" href={`${BASE}/${result.shortCode}`} target="_blank" rel="noreferrer">{BASE}/{result.shortCode}</a></div>
+              <div>Short URL: <a className="text-blue-600" href={`${DISPLAY_ROOT}/${result.shortCode}`} target="_blank" rel="noreferrer">{DISPLAY_ROOT}/{result.shortCode}</a></div>
               <div>Created At: {new Date(result.createdAt).toLocaleString()}</div>
               <div>
-                <button onClick={() => { navigator.clipboard?.writeText(`${BASE}/${result.shortCode}`).then(()=>toast.success('Copied')).catch(()=>toast.error('Copy failed')) }} className="px-3 py-1 bg-gray-200 rounded">Copy</button>
+                <button onClick={() => { navigator.clipboard?.writeText(`${DISPLAY_ROOT}/${result.shortCode}`).then(()=>toast.success('Copied')).catch(()=>toast.error('Copy failed')) }} className="px-3 py-1 bg-gray-200 rounded">Copy</button>
               </div>
             </div>
           )}

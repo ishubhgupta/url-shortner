@@ -7,13 +7,24 @@ export default function Analytics() {
   const [shortCode, setShortCode] = useState('')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
-  const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000'
+  const ENV_API = import.meta.env.VITE_API_BASE
+  let API_BASE
+  if (ENV_API) {
+    if (ENV_API.startsWith('http')) {
+      API_BASE = ENV_API.replace(/\/+$/, '')
+      if (!API_BASE.endsWith('/api')) API_BASE = API_BASE + '/api'
+    } else {
+      API_BASE = ENV_API.startsWith('/') ? ENV_API : '/' + ENV_API
+    }
+  } else {
+    API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:5000/api'
+  }
 
   const fetch = async () => {
     if (!shortCode) return
     try {
       setLoading(true)
-      const res = await axios.get(`${BASE}/api/urls/${shortCode}/analytics`)
+  const res = await axios.get(`${API_BASE}/urls/${shortCode}/analytics`)
       setData(res.data)
     } catch (err) {
       toast.error(err.response?.data?.message || err.message)
