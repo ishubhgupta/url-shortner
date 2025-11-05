@@ -8,16 +8,27 @@ export default function Analytics() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const ENV_API = import.meta.env.VITE_API_BASE
-  let API_BASE
-  if (ENV_API) {
-    if (ENV_API.startsWith('http')) {
-      API_BASE = ENV_API.replace(/\/+$/, '')
-      if (!API_BASE.endsWith('/api')) API_BASE = API_BASE + '/api'
-    } else {
-      API_BASE = ENV_API.startsWith('/') ? ENV_API : '/' + ENV_API
+  const normalizeEnvApi = (val) => {
+    if (!val) return null
+    const t = String(val).trim()
+    if (t === '') return null
+    if (/^https?:\/\//i.test(t)) return t.replace(/\/+$/, '')
+    if (t.startsWith('/')) return t.replace(/\/+$/, '')
+    if (/^[\w.-]+(:\d+)?$/.test(t)) {
+      const scheme = import.meta.env.PROD ? 'https://' : 'http://'
+      return (scheme + t).replace(/\/+$/, '')
     }
-  } else {
+    return t.replace(/\/+$/, '')
+  }
+
+  const normalized = normalizeEnvApi(ENV_API)
+  let API_BASE
+  if (!normalized) {
     API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:5000/api'
+  } else if (normalized.startsWith('/')) {
+    API_BASE = normalized
+  } else {
+    API_BASE = normalized.endsWith('/api') ? normalized : normalized + '/api'
   }
 
   const fetch = async () => {

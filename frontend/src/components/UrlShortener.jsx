@@ -8,21 +8,39 @@ export default function UrlShortener() {
   const [expiresAt, setExpiresAt] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
-  // Normalize API base:
+  // Normalize API base robustly.
   const ENV_API = import.meta.env.VITE_API_BASE
-  let API_BASE
-  if (ENV_API) {
-    if (ENV_API.startsWith('http')) {
-      API_BASE = ENV_API.replace(/\/+$/, '')
-      if (!API_BASE.endsWith('/api')) API_BASE = API_BASE + '/api'
-    } else {
-      API_BASE = ENV_API.startsWith('/') ? ENV_API : '/' + ENV_API
+  const normalizeEnvApi = (val) => {
+    if (!val) return null
+    const t = String(val).trim()
+    if (t === '') return null
+    // already absolute
+    if (/^https?:\/\//i.test(t)) return t.replace(/\/+$/, '')
+    // absolute path on current origin
+    if (t.startsWith('/')) return t.replace(/\/+$/, '')
+    // looks like host or IP (e.g. 43.204.112.113 or example.com or example.com:5000)
+    if (/^[\w.-]+(:\d+)?$/.test(t)) {
+      // prefer https in production, http in dev
+      const scheme = import.meta.env.PROD ? 'https://' : 'http://'
+      return (scheme + t).replace(/\/+$/, '')
     }
-  } else {
-    API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:5000/api'
+    // fallback to value as-is
+    return t.replace(/\/+$/, '')
   }
 
-  // Display root (where short links live) — if API_BASE is absolute, strip the /api suffix
+  const normalized = normalizeEnvApi(ENV_API)
+  let API_BASE
+  if (!normalized) {
+    API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:5000/api'
+  } else if (normalized.startsWith('/')) {
+    // relative path on same origin
+    API_BASE = normalized
+  } else {
+    // absolute url; ensure it ends with /api
+    API_BASE = normalized.endsWith('/api') ? normalized : normalized + '/api'
+  }
+
+  // Display root (where short links live). If API_BASE is absolute, strip the /api suffix.
   const DISPLAY_ROOT = API_BASE.startsWith('http') ? API_BASE.replace(/\/api\/?$/, '') : (typeof window !== 'undefined' ? window.location.origin : '')
 
   const submit = async (e) => {
